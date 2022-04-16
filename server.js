@@ -5,6 +5,7 @@ const connectDB = require("./db");
 const User = require("./models/User");
 app.use(express.json())
 const bcrypt = require('bcryptjs');
+var jwt = require('jsonwebtoken');
 
 app.post('/register', async (req, res, next) => {
   const {name, email, password} = req.body;
@@ -57,15 +58,49 @@ app.post('/login', async (req, res, next) => {
         message:"Invalid credentials"
       })
     }
+    delete user._doc.password
+
+    const token = jwt.sign(user._doc, 'secret-key', {expiresIn:'2h'})
 
     return res.status(200).json({
-      message:"Login Successfully"
+      message:"Login Successfully",token
     })
 
   } catch (e) {
     next(e)
   }
 });   
+
+app.get('/public', (req, res) => {
+  res.status(200).json("PUBLIC ROUTE")
+});
+
+
+app.get('/private', async (req, res) => {
+  let token = req.headers.authorization;
+  if (!token) {
+    return res.status(400).json({message:"Unauthorized"})
+  }
+  
+  try {
+    token = token.split(' ')[1]
+    const decoded = jwt.verify(token, 'secret-key');
+    console.log(decoded);
+    const user = await User.findById(decoded._id);
+
+    if (!user) {
+      return res.status(400).json({message:"Unauthorized"})
+    }
+    
+    return res.status(200).json({
+      message:"WELLCOME PRIVATE ROUTER"
+    })
+
+  } catch (e) {
+    return res.status(400).json({message:"Invalid token"})
+  }
+
+});
 
 
 
